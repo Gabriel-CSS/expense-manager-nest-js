@@ -1,0 +1,22 @@
+FROM node:20-alpine
+
+ENV DOCKERIZE_VERSION v0.7.0
+
+RUN apk add --no-cache python3 make g++ wget \
+    && wget -O - https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz | tar xzf - -C /usr/local/bin \
+    && apk del wget
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY tsconfig*.json ./
+COPY apps/notification-service/package*.json apps/notification-service/
+
+RUN npm install -g @nestjs/cli
+RUN npm install
+
+COPY . .
+
+RUN npm run build notification-service
+
+CMD ["dockerize", "-wait", "tcp://rabbitmq:5672", "-timeout", "60s", "node", "dist/apps/notification-service/main.js"] 
